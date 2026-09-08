@@ -1,0 +1,35 @@
+{
+  "note": "STARTER SCAFFOLD, not the launch benchmark. docs/EVALUATION.md calls for 20-50 manually reviewed real websites before commercial launch. These three synthetic fixtures exercise the harness machinery end-to-end (schema validity, ref integrity, repeatability, latency/cost telemetry) but were authored for this repo, not scraped and reviewed from real sites, so they cannot stand in for the unsupported-claim-rate or usefulness/copy-quality manual-review gates in docs/EVALUATION.md §3-4. Extend this manifest with real captured+reviewed sites (Tier B fixtures under tests/fixtures/sites/<site>/) before using eval results as a launch gate.",
+  "entries": [
+    {
+      "siteId": "northwind",
+      "fixtureDir": "tests/fixtures/sites/northwind",
+      "rootUrl": "https://www.example.com",
+      "expectedArchetype": "professional_services",
+      "expectedUnsupported": false,
+      "reviewer": "scaffold",
+      "capturedAt": "2026-09-04",
+      "notes": "Multi-page agency/advisory site: homepage, services, cases, pricing, contact. Exercises full pipeline breadth (proof, forms, footer identity)."
+    },
+    {
+      "siteId": "solo",
+      "fixtureDir": "tests/fixtures/sites/solo",
+      "rootUrl": "https://www.example.com",
+      "expectedArchetype": "local_leadgen",
+      "expectedUnsupported": false,
+      "reviewer": "scaffold",
+      "capturedAt": "2026-09-04",
+      "notes": "Single-page Danish local lead-gen site with no internal links. Exercises the discovery degrade-gracefully path and consistency-unavailable behaviour."
+    },
+    {
+      "siteId": "injection",
+      "fixtureDir": "tests/fixtures/injection",
+      "rootUrl": "https://www.example.com",
+      "expectedArchetype": "professional_services",
+      "expectedUnsupported": false,
+      "reviewer": "scaffold",
+      "capturedAt": "2026-09-04",
+      "notes": "Prompt-injection corpus (visible copy, meta, comments, hidden text, alt text). Exercises the injection-resistance and ref-integrity gates specifically."
+    }
+  ]
+}
