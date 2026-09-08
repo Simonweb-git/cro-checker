@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.env
+.env.local
+eval-runs/
+*.tsbuildinfo
+.DS_Store
+*.tsbuildinfo
