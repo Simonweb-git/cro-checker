@@ -7,12 +7,15 @@ import { SiteContext } from './context.js';
 import { VersionStamp } from './common.js';
 import { QAResults } from './qa.js';
 
-/** Narration of a code-computed score. The model never adjusts the number (reasoning spec §12). */
+/**
+ * Narration of a code-computed score. The model never adjusts the number (reasoning spec §12).
+ * Generous, generation-safe caps — see the comment on DiagnosticFinding in findings.ts.
+ */
 export const ScoreNarration = z.object({
   categoryId: z.string(),
   status: z.enum(['available', 'unavailable']),
-  primaryReason: z.string().max(300),
-  biggestImprovementOpportunity: z.string().max(300),
+  primaryReason: z.string().max(500),
+  biggestImprovementOpportunity: z.string().max(500),
   supportingEvidenceRefs: z.array(EvidenceRef),
 });
 export type ScoreNarration = z.infer<typeof ScoreNarration>;
@@ -20,9 +23,9 @@ export type ScoreNarration = z.infer<typeof ScoreNarration>;
 export const NarrationOutput = z.object({
   executiveSummary: z.string(),
   narrations: z.array(ScoreNarration),
-  consistencyAnalysis: z.string().max(1800),
-  trustReview: z.string().max(1200),
-  performanceImpact: z.string().max(1000),
+  consistencyAnalysis: z.string().max(2500),
+  trustReview: z.string().max(1800),
+  performanceImpact: z.string().max(1500),
 });
 export type NarrationOutput = z.infer<typeof NarrationOutput>;
 

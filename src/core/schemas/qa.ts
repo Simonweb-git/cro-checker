@@ -7,8 +7,9 @@ export const QAItemResult = z.object({
   itemId: z.string(),
   itemType: z.enum(['finding', 'fix', 'narration']),
   verdict: QAVerdict,
-  reason: z.string().max(400),
-  revisionInstruction: z.string().max(400).nullable(),
+  // Generous, generation-safe caps — see the comment on DiagnosticFinding in findings.ts.
+  reason: z.string().max(1200),
+  revisionInstruction: z.string().max(1200).nullable(),
 });
 export type QAItemResult = z.infer<typeof QAItemResult>;
 

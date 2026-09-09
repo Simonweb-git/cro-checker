@@ -49,7 +49,8 @@ You classify NAMED CRO signals on a bounded scale. For each requested signalId r
 4 = excellent
 "not_applicable" = the signal is not relevant to this archetype/conversion goal
 "insufficient_evidence" = the extraction does not support a reliable judgement
-Return evidenceRefs and a confidence for every signal. Do not output a category score, an overall score or any number outside this scale. Judge each signal only against its own definition.`;
+Return evidenceRefs and a confidence for every signal. Do not output a category score, an overall score or any number outside this scale. Judge each signal only against its own definition.
+Keep each rationale to one or two sentences (roughly 400 characters). It will be truncated if longer, so front-load the point.`;
 
 export const DIAGNOSTIC_SYSTEM = `${GLOBAL_RULES}
 

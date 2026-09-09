@@ -1,13 +1,16 @@
 import { z } from 'zod';
 import { Confidence, EvidenceRef, SignalValue } from './common.js';
 
+/** Domain cap for a rationale once it is in the final, validated report. */
+export const RATIONALE_MAX_LENGTH = 500;
+
 /** One bounded classification. An LLM returns these; code turns them into scores (ADR-003). */
 export const SignalAssessment = z.object({
   signalId: z.string(),
   value: SignalValue,
   evidenceRefs: z.array(EvidenceRef),
   confidence: Confidence,
-  rationale: z.string().max(400),
+  rationale: z.string().max(RATIONALE_MAX_LENGTH),
 });
 export type SignalAssessment = z.infer<typeof SignalAssessment>;
 
@@ -18,7 +21,15 @@ export const SignalAssessmentSet = z.object({
 });
 export type SignalAssessmentSet = z.infer<typeof SignalAssessmentSet>;
 
-/** Batched model output for one category. Values only — no scores. */
+/**
+ * Batched model output for one category. Deliberately has NO length cap on rationale: Anthropic (and
+ * most providers) constrain generated JSON to the right STRUCTURE/types via tool-calling, but do not
+ * reliably enforce a Zod `.max()` string-length constraint during generation. A model writing a
+ * genuinely good, evidence-grounded rationale that runs a little long then fails the SDK's own
+ * post-generation schema re-validation and the entire batch is lost — this happened live. The
+ * strict RATIONALE_MAX_LENGTH cap is enforced in code afterward (runSignalStage), by truncating
+ * rather than rejecting.
+ */
 export const SignalBatchOutput = z.object({
   assessments: z.array(
     z.object({
@@ -26,7 +37,7 @@ export const SignalBatchOutput = z.object({
       value: SignalValue,
       evidenceRefs: z.array(z.string()),
       confidence: Confidence,
-      rationale: z.string().max(400),
+      rationale: z.string(),
     }),
   ),
 });

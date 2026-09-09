@@ -112,6 +112,23 @@ describe('signal stage', () => {
     const result = await runSignalStage({ evidence, context, model: 'm', client });
     expect(result.find((a) => a.signalId === 'offer_clarity')?.value).toBe('insufficient_evidence');
   });
+
+  it('truncates an over-length rationale in code rather than rejecting the whole batch (regression)', async () => {
+    // Live incident: a genuinely good rationale ran past the old 400-char schema cap and the AI SDK's
+    // post-generation validation threw AI_NoObjectGeneratedError, losing the entire category batch.
+    const longRationale = 'x'.repeat(900);
+    const client = new FakeModelClient({
+      signals: {
+        assessments: [
+          { signalId: 'offer_clarity', value: 3, evidenceRefs: ['page_1.hero.headline'], confidence: 'high', rationale: longRationale },
+        ],
+      },
+    });
+    const result = await runSignalStage({ evidence, context, model: 'm', client });
+    const assessment = result.find((a) => a.signalId === 'offer_clarity');
+    expect(assessment?.rationale.length).toBeLessThanOrEqual(500);
+    expect(assessment?.rationale.endsWith('…')).toBe(true);
+  });
 });
 
 describe('fix stage', () => {

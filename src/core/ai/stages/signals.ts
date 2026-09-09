@@ -1,7 +1,7 @@
 import type { ModelClient } from '../model-client.js';
 import type { WebsiteEvidence } from '../../schemas/evidence.js';
 import type { SiteContext } from '../../schemas/context.js';
-import { SignalBatchOutput, type SignalAssessment } from '../../schemas/signals.js';
+import { RATIONALE_MAX_LENGTH, SignalBatchOutput, type SignalAssessment } from '../../schemas/signals.js';
 import { buildRefRegistry, evidencePayload } from '../evidence-payload.js';
 import { fenceEvidence, SIGNAL_SYSTEM } from '../prompts.js';
 import {
@@ -90,7 +90,7 @@ export async function runSignalStage(input: SignalStageInput): Promise<SignalAss
         confidence: unsupported ? 'high' : assessment.confidence,
         rationale: unsupported
           ? 'Classification cited no valid evidence reference and was rejected by the engine.'
-          : assessment.rationale,
+          : truncate(assessment.rationale, RATIONALE_MAX_LENGTH),
       });
     }
     for (const signal of askable) {
@@ -107,4 +107,13 @@ export async function runSignalStage(input: SignalStageInput): Promise<SignalAss
   }
 
   return out;
+}
+
+/**
+ * Truncates rather than rejects: the model's tool-schema does not hard-enforce string length during
+ * generation (see schemas/signals.ts), so this is where the domain cap is actually applied.
+ */
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1)}…`;
 }

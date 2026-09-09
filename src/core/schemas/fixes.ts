@@ -1,14 +1,16 @@
 import { z } from 'zod';
 import { EvidenceRef, ExpectedImpact, PageId } from './common.js';
 
+// Generous, generation-safe caps — see the comment on DiagnosticFinding in findings.ts for why
+// (Anthropic's tool-calling does not hard-enforce Zod .max() string length during generation).
 const FixBase = {
   fixId: z.string().regex(/^fx_[a-z0-9_]+$/),
   findingId: z.string(),
   pageId: PageId,
-  placement: z.string().max(160),
-  currentIssue: z.string().max(500),
-  whatToChange: z.string().max(500),
-  rationale: z.string().max(500),
+  placement: z.string().max(300),
+  currentIssue: z.string().max(1200),
+  whatToChange: z.string().max(1200),
+  rationale: z.string().max(1200),
   evidenceRefs: z.array(EvidenceRef).min(1),
 };
 
@@ -17,7 +19,7 @@ export const HeroFix = z.object({
   kind: z.literal('hero'),
   /** Up to three alternatives, only when a hero issue was validated (reasoning spec §10). */
   alternatives: z
-    .array(z.object({ headline: z.string().max(160), subheadline: z.string().max(300) }))
+    .array(z.object({ headline: z.string().max(300), subheadline: z.string().max(500) }))
     .max(3),
 });
 
@@ -25,13 +27,13 @@ export const CtaFix = z.object({
   ...FixBase,
   kind: z.literal('cta'),
   /** A coherent strategy, not arbitrary labels. */
-  strategy: z.string().max(400),
+  strategy: z.string().max(900),
   recommendations: z
     .array(
       z.object({
-        label: z.string().max(80),
+        label: z.string().max(120),
         role: z.enum(['primary_high_intent', 'secondary_low_friction', 'supporting']),
-        placement: z.string().max(160),
+        placement: z.string().max(300),
       }),
     )
     .max(4),
@@ -40,15 +42,15 @@ export const CtaFix = z.object({
 export const CopyFix = z.object({
   ...FixBase,
   kind: z.literal('copy'),
-  currentCopy: z.string().max(600).nullable(),
-  proposedCopy: z.string().max(600),
+  currentCopy: z.string().max(1200).nullable(),
+  proposedCopy: z.string().max(1200),
 });
 
 /** Used when evidence cannot support accurate replacement copy (reasoning spec §10). */
 export const StructuralFix = z.object({
   ...FixBase,
   kind: z.literal('structural'),
-  recommendation: z.string().max(600),
+  recommendation: z.string().max(1200),
 });
 
 export const Fix = z.discriminatedUnion('kind', [HeroFix, CtaFix, CopyFix, StructuralFix]);
@@ -59,7 +61,7 @@ export type FixOutput = z.infer<typeof FixOutput>;
 
 export const ActionItem = z.object({
   actionId: z.string(),
-  action: z.string().max(240),
+  action: z.string().max(1200),
   findingId: z.string(),
   expectedImpact: ExpectedImpact,
   effort: z.enum(['quick_win', 'requires_deeper_work']),
