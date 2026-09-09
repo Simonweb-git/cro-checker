@@ -15,6 +15,23 @@ export async function GET() {
     persistence: config.persistence,
     hasDatabaseUrl: Boolean(config.databaseUrl),
     nodeEnv: config.nodeEnv,
+    // Safe to expose: this is meant to be the literal word "postgres" or "memory", never a secret.
+    // Reported raw (not run through the strict === 'postgres' parse) so a stray case/whitespace
+    // mismatch is visible directly, instead of silently falling back to "memory".
+    rawPersistenceEnv: process.env.PERSISTENCE ?? null,
+    // Which of the accepted var names actually resolved, and enough about the value to confirm it
+    // looks like a real Postgres URL — never the URL itself.
+    databaseUrlSource: process.env.DATABASE_URL
+      ? 'DATABASE_URL'
+      : process.env.POSTGRES_URL
+        ? 'POSTGRES_URL'
+        : process.env.POSTGRES_PRISMA_URL
+          ? 'POSTGRES_PRISMA_URL'
+          : process.env.POSTGRES_URL_NON_POOLING
+            ? 'POSTGRES_URL_NON_POOLING'
+            : null,
+    databaseUrlLooksValid: config.databaseUrl?.startsWith('postgres') ?? false,
+    databaseUrlLength: config.databaseUrl?.length ?? 0,
   };
 
   try {
