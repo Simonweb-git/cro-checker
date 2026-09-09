@@ -23,14 +23,31 @@ export default function AnalysisProgressPage() {
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+    let consecutiveFailures = 0;
+    // A single failed poll is not proof the analysis doesn't exist — it could be a cold start, a
+    // transient database hiccup, or a request that raced the job's own creation. Only report a
+    // permanent failure after several consecutive misses spanning a real amount of time.
+    const MAX_CONSECUTIVE_FAILURES = 6;
 
     async function poll() {
       try {
         const response = await fetch(`/api/analysis/${params.id}`, { cache: 'no-store' });
         if (!response.ok) {
-          if (!cancelled) setPollError('This analysis could not be found.');
+          consecutiveFailures += 1;
+          if (cancelled) return;
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            setPollError(
+              response.status === 404
+                ? 'This analysis could not be found.'
+                : 'The analysis service is not responding. Please try again shortly.',
+            );
+            return;
+          }
+          setPollError('Waiting for the analysis to start…');
+          timer = setTimeout(poll, 2000);
           return;
         }
+        consecutiveFailures = 0;
         const data: StatusResponse = await response.json();
         if (cancelled) return;
         setStatus(data);
@@ -44,7 +61,13 @@ export default function AnalysisProgressPage() {
         if (data.stage === 'failed') return;
         timer = setTimeout(poll, 1800);
       } catch {
-        if (!cancelled) setPollError('Lost connection to the analysis service. Retrying…');
+        consecutiveFailures += 1;
+        if (cancelled) return;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          setPollError('Lost connection to the analysis service. Please refresh to try again.');
+          return;
+        }
+        setPollError('Lost connection to the analysis service. Retrying…');
         timer = setTimeout(poll, 3000);
       }
     }

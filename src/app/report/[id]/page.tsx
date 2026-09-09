@@ -17,10 +17,27 @@ export default function ReportPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/analysis/${params.id}`, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((d) => !cancelled && setData(d))
-      .catch(() => !cancelled && setLoadError('This report could not be loaded.'));
+    // Retry before giving up: the redirect from the progress page can race a transient blip (cold
+    // start, brief database hiccup) on this very next request. A single failure here is not proof
+    // the report doesn't exist.
+    const MAX_ATTEMPTS = 5;
+
+    async function load(attempt: number) {
+      try {
+        const response = await fetch(`/api/analysis/${params.id}`, { cache: 'no-store' });
+        if (!response.ok) throw response;
+        const body = await response.json();
+        if (!cancelled) setData(body);
+      } catch {
+        if (cancelled) return;
+        if (attempt >= MAX_ATTEMPTS) {
+          setLoadError('This report could not be loaded.');
+          return;
+        }
+        setTimeout(() => load(attempt + 1), 1500 * attempt);
+      }
+    }
+    load(1);
     return () => {
       cancelled = true;
     };
