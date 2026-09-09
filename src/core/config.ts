@@ -63,9 +63,26 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): EngineConfig {
     },
     reportLanguage: env.REPORT_LANGUAGE || null,
     persistence: env.PERSISTENCE === 'postgres' ? 'postgres' : 'memory',
-    databaseUrl: env.DATABASE_URL || undefined,
+    databaseUrl: resolveDatabaseUrl(env),
     nodeEnv: env.NODE_ENV ?? 'development',
   };
+}
+
+/**
+ * Vercel's own Postgres integrations (Neon-backed "Storage" tab, or the older Vercel Postgres
+ * product) don't all inject the same env var name — DATABASE_URL is the portable one we document,
+ * but POSTGRES_URL / POSTGRES_PRISMA_URL show up depending on which integration was used. Checking
+ * the common names here means "connect a Postgres database in the Vercel dashboard" just works,
+ * without asking the user to rename an env var (ADR-011: adapters stay portable, not vendor-coupled).
+ */
+function resolveDatabaseUrl(env: NodeJS.ProcessEnv): string | undefined {
+  return (
+    env.DATABASE_URL ||
+    env.POSTGRES_URL ||
+    env.POSTGRES_PRISMA_URL ||
+    env.POSTGRES_URL_NON_POOLING ||
+    undefined
+  );
 }
 
 export function hasRealModelAccess(config: EngineConfig): boolean {
