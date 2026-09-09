@@ -53,7 +53,15 @@ export type Confidence = z.infer<typeof Confidence>;
  * Stable citation id for an extracted element, e.g. `page_2.hero.cta_1`.
  * Findings cite these instead of repeating page dumps (build spec §10).
  */
-export const EvidenceRef = z.string().regex(/^page_\d+(\.[a-z0-9_]+)+$/);
+/**
+ * Shape check only — NOT the security boundary. A live failure showed a model citing
+ * "page_1.metaDescription" (a real payload field, but a bare string with no minted ref of its own):
+ * the regex rejected the capital D outright before the ref even reached the registry-membership
+ * check. Widened to accept mixed-case path segments. Whether a ref actually corresponds to a minted
+ * evidence item is enforced separately by buildRefRegistry/checkRefs (ai/evidence-payload.ts,
+ * ai/ref-validation.ts) — this regex only stops generation from being rejected for CASE.
+ */
+export const EvidenceRef = z.string().regex(/^page_\d+(\.[a-zA-Z0-9_]+)+$/);
 export type EvidenceRef = z.infer<typeof EvidenceRef>;
 
 export const PageId = z.string().regex(/^page_\d+$/);

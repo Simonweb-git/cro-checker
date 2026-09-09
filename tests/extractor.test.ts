@@ -45,6 +45,17 @@ describe('extractor', () => {
     expect(page.hero.headline!.ref).toBe('page_1.hero.headline');
   });
 
+  it('accepts mixed-case ref path segments (regression)', () => {
+    // A live failure showed a model citing "page_1.metaDescription" — a real payload field name,
+    // just not a minted ref — and the old regex rejected it purely for the capital D before the
+    // registry-membership check ever ran. The regex is a shape check, not the security boundary.
+    expect(() => EvidenceRef.parse('page_1.metaDescription')).not.toThrow();
+    expect(() => EvidenceRef.parse('page_2.url')).not.toThrow();
+    expect(() => EvidenceRef.parse('page_1.hero.headline')).not.toThrow();
+    expect(() => EvidenceRef.parse('not_a_ref')).toThrow();
+    expect(() => EvidenceRef.parse('page_1')).toThrow();
+  });
+
   it('classifies conversion action intent deterministically', () => {
     const intents = page.conversionActions.map((a) => a.intent);
     expect(intents).toContain('contact');
