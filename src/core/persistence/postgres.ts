@@ -3,12 +3,22 @@ import type { AnalysisJob, JobStage } from '../schemas/job.js';
 import type { FinalReport } from '../schemas/report.js';
 import type { AnalysisRepository, StepRecord } from './repository.js';
 
-/** Versioned migration. Applied by `applyMigrations` at startup; no ORM, no vendor lock-in (ADR-011). */
+/**
+ * Versioned migration. Applied by `applyMigrations` at startup; no ORM, no vendor lock-in (ADR-011).
+ *
+ * All table names (including the migration-tracking table itself) are prefixed `cro_checker_`.
+ * A live deployment connected a Neon database that already belonged to a completely different
+ * project and already had its own generically-named `schema_migrations` table (different columns),
+ * which made `CREATE TABLE IF NOT EXISTS schema_migrations (...)` silently no-op against the wrong
+ * table and the next query fail with "column \"id\" does not exist". This app should still get its
+ * own dedicated database, but the prefix means it can never again collide with another project's
+ * tooling if it ends up sharing a database.
+ */
 export const MIGRATIONS: Array<{ id: string; sql: string }> = [
   {
     id: '001_init',
     sql: `
-      CREATE TABLE IF NOT EXISTS analyses (
+      CREATE TABLE IF NOT EXISTS cro_checker_analyses (
         analysis_id TEXT PRIMARY KEY,
         root_url TEXT NOT NULL,
         stage TEXT NOT NULL,
@@ -18,16 +28,16 @@ export const MIGRATIONS: Array<{ id: string; sql: string }> = [
         error TEXT,
         partial_reasons JSONB NOT NULL DEFAULT '[]'::jsonb
       );
-      CREATE TABLE IF NOT EXISTS analysis_steps (
-        analysis_id TEXT NOT NULL REFERENCES analyses(analysis_id) ON DELETE CASCADE,
+      CREATE TABLE IF NOT EXISTS cro_checker_analysis_steps (
+        analysis_id TEXT NOT NULL REFERENCES cro_checker_analyses(analysis_id) ON DELETE CASCADE,
         step TEXT NOT NULL,
         output JSONB NOT NULL,
         duration_ms INTEGER NOT NULL,
         completed_at TIMESTAMPTZ NOT NULL,
         PRIMARY KEY (analysis_id, step)
       );
-      CREATE TABLE IF NOT EXISTS analysis_reports (
-        analysis_id TEXT PRIMARY KEY REFERENCES analyses(analysis_id) ON DELETE CASCADE,
+      CREATE TABLE IF NOT EXISTS cro_checker_analysis_reports (
+        analysis_id TEXT PRIMARY KEY REFERENCES cro_checker_analyses(analysis_id) ON DELETE CASCADE,
         report JSONB NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
@@ -36,12 +46,14 @@ export const MIGRATIONS: Array<{ id: string; sql: string }> = [
 ];
 
 export async function applyMigrations(pool: Pool): Promise<void> {
-  await pool.query('CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
+  await pool.query(
+    'CREATE TABLE IF NOT EXISTS cro_checker_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
+  );
   for (const migration of MIGRATIONS) {
-    const { rowCount } = await pool.query('SELECT 1 FROM schema_migrations WHERE id = $1', [migration.id]);
+    const { rowCount } = await pool.query('SELECT 1 FROM cro_checker_migrations WHERE id = $1', [migration.id]);
     if (rowCount) continue;
     await pool.query(migration.sql);
-    await pool.query('INSERT INTO schema_migrations (id) VALUES ($1)', [migration.id]);
+    await pool.query('INSERT INTO cro_checker_migrations (id) VALUES ($1)', [migration.id]);
   }
 }
 
@@ -50,14 +62,14 @@ export class PostgresRepository implements AnalysisRepository {
 
   async createJob(job: AnalysisJob): Promise<void> {
     await this.pool.query(
-      `INSERT INTO analyses (analysis_id, root_url, stage, created_at, updated_at, selected_pages, error, partial_reasons)
+      `INSERT INTO cro_checker_analyses (analysis_id, root_url, stage, created_at, updated_at, selected_pages, error, partial_reasons)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (analysis_id) DO NOTHING`,
       [job.analysisId, job.rootUrl, job.stage, job.createdAt, job.updatedAt, JSON.stringify(job.selectedPages), job.error, JSON.stringify(job.partialReasons)],
     );
   }
 
   async getJob(analysisId: string): Promise<AnalysisJob | null> {
-    const { rows } = await this.pool.query('SELECT * FROM analyses WHERE analysis_id = $1', [analysisId]);
+    const { rows } = await this.pool.query('SELECT * FROM cro_checker_analyses WHERE analysis_id = $1', [analysisId]);
     const row = rows[0];
     if (!row) return null;
     return {
@@ -77,7 +89,7 @@ export class PostgresRepository implements AnalysisRepository {
     if (!current) throw new Error(`Unknown analysis ${analysisId}`);
     const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
     await this.pool.query(
-      `UPDATE analyses SET stage=$2, updated_at=$3, selected_pages=$4, error=$5, partial_reasons=$6 WHERE analysis_id=$1`,
+      `UPDATE cro_checker_analyses SET stage=$2, updated_at=$3, selected_pages=$4, error=$5, partial_reasons=$6 WHERE analysis_id=$1`,
       [analysisId, next.stage, next.updatedAt, JSON.stringify(next.selectedPages), next.error, JSON.stringify(next.partialReasons)],
     );
   }
@@ -88,7 +100,7 @@ export class PostgresRepository implements AnalysisRepository {
 
   async saveStep(record: StepRecord): Promise<void> {
     await this.pool.query(
-      `INSERT INTO analysis_steps (analysis_id, step, output, duration_ms, completed_at)
+      `INSERT INTO cro_checker_analysis_steps (analysis_id, step, output, duration_ms, completed_at)
        VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (analysis_id, step) DO UPDATE SET output=EXCLUDED.output, duration_ms=EXCLUDED.duration_ms, completed_at=EXCLUDED.completed_at`,
       [record.analysisId, record.step, JSON.stringify(record.output), record.durationMs, record.completedAt],
@@ -97,7 +109,7 @@ export class PostgresRepository implements AnalysisRepository {
 
   async getStep(analysisId: string, step: string): Promise<StepRecord | null> {
     const { rows } = await this.pool.query(
-      'SELECT * FROM analysis_steps WHERE analysis_id=$1 AND step=$2',
+      'SELECT * FROM cro_checker_analysis_steps WHERE analysis_id=$1 AND step=$2',
       [analysisId, step],
     );
     const row = rows[0];
@@ -113,14 +125,14 @@ export class PostgresRepository implements AnalysisRepository {
 
   async saveReport(analysisId: string, report: FinalReport): Promise<void> {
     await this.pool.query(
-      `INSERT INTO analysis_reports (analysis_id, report) VALUES ($1,$2)
+      `INSERT INTO cro_checker_analysis_reports (analysis_id, report) VALUES ($1,$2)
        ON CONFLICT (analysis_id) DO UPDATE SET report=EXCLUDED.report`,
       [analysisId, JSON.stringify(report)],
     );
   }
 
   async getReport(analysisId: string): Promise<FinalReport | null> {
-    const { rows } = await this.pool.query('SELECT report FROM analysis_reports WHERE analysis_id=$1', [analysisId]);
+    const { rows } = await this.pool.query('SELECT report FROM cro_checker_analysis_reports WHERE analysis_id=$1', [analysisId]);
     return rows[0]?.report ?? null;
   }
 }
