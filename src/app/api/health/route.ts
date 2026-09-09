@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Pool } from 'pg';
 import { getConfig, getRepository } from '../../../lib/store.js';
 import { createAnalysisJob } from '../../../core/pipeline/orchestrator.js';
 
@@ -52,10 +53,27 @@ export async function GET() {
       roundTripOk: readBack?.analysisId === diagnosticId,
     });
   } catch (error) {
+    // Diagnostic-only: introspect the actual schema so a mismatch is visible directly instead of
+    // guessed at. Safe to expose — table/column names only, never row data or the connection string.
+    let schema: unknown = null;
+    if (config.databaseUrl) {
+      try {
+        const pool = new Pool({ connectionString: config.databaseUrl });
+        const result = await pool.query(
+          `SELECT table_name, column_name, data_type FROM information_schema.columns
+           WHERE table_schema = 'public' ORDER BY table_name, ordinal_position`,
+        );
+        schema = result.rows;
+        await pool.end();
+      } catch (introspectError) {
+        schema = { introspectFailed: String((introspectError as Error)?.message ?? introspectError) };
+      }
+    }
     return NextResponse.json({
       ...base,
       repositoryReachable: false,
       error: String((error as Error)?.message ?? error),
+      schema,
     });
   }
 }
