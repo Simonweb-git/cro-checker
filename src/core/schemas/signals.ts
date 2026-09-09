@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Confidence, EvidenceRef, SignalValue } from './common.js';
+import { Confidence, EvidenceRef, SignalValue, lenientArray } from './common.js';
 
 /** Domain cap for a rationale once it is in the final, validated report. */
 export const RATIONALE_MAX_LENGTH = 500;
@@ -31,14 +31,16 @@ export type SignalAssessmentSet = z.infer<typeof SignalAssessmentSet>;
  * rather than rejecting.
  */
 export const SignalBatchOutput = z.object({
-  assessments: z.array(
-    z.object({
-      signalId: z.string(),
-      value: SignalValue,
-      evidenceRefs: z.array(z.string()),
-      confidence: Confidence,
-      rationale: z.string(),
-    }),
+  assessments: lenientArray(
+    z.array(
+      z.object({
+        signalId: z.string(),
+        value: SignalValue,
+        evidenceRefs: lenientArray(z.array(z.string())),
+        confidence: Confidence,
+        rationale: z.string(),
+      }),
+    ),
   ),
 });
 export type SignalBatchOutput = z.infer<typeof SignalBatchOutput>;

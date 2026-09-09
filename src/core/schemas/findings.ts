@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Confidence, EvidenceRef, ExpectedImpact, PageId, Severity } from './common.js';
+import { Confidence, EvidenceRef, ExpectedImpact, PageId, Severity, lenientArray } from './common.js';
 
 /**
  * Required finding fields, verbatim from reasoning spec §8.
@@ -15,8 +15,8 @@ export const DiagnosticFinding = z.object({
   title: z.string().max(200),
   severity: Severity,
   expectedImpact: ExpectedImpact,
-  affectedPages: z.array(PageId).min(1),
-  evidenceRefs: z.array(EvidenceRef).min(1),
+  affectedPages: lenientArray(z.array(PageId).min(1)),
+  evidenceRefs: lenientArray(z.array(EvidenceRef).min(1)),
   observedFact: z.string().max(1500),
   croInference: z.string().max(1500),
   whyItHurts: z.string().max(1500),
@@ -29,7 +29,7 @@ export const DiagnosticFinding = z.object({
 export type DiagnosticFinding = z.infer<typeof DiagnosticFinding>;
 
 export const DiagnosticOutput = z.object({
-  findings: z.array(DiagnosticFinding).min(0).max(5),
+  findings: lenientArray(z.array(DiagnosticFinding).min(0).max(5)),
 });
 export type DiagnosticOutput = z.infer<typeof DiagnosticOutput>;
 

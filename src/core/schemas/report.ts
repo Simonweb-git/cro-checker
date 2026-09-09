@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EvidenceRef, PageId } from './common.js';
+import { EvidenceRef, PageId, lenientArray } from './common.js';
 import { ScoreSet } from './scores.js';
 import { DiagnosticFinding } from './findings.js';
 import { ActionItem, Fix } from './fixes.js';
@@ -16,13 +16,13 @@ export const ScoreNarration = z.object({
   status: z.enum(['available', 'unavailable']),
   primaryReason: z.string().max(500),
   biggestImprovementOpportunity: z.string().max(500),
-  supportingEvidenceRefs: z.array(EvidenceRef),
+  supportingEvidenceRefs: lenientArray(z.array(EvidenceRef)),
 });
 export type ScoreNarration = z.infer<typeof ScoreNarration>;
 
 export const NarrationOutput = z.object({
   executiveSummary: z.string(),
-  narrations: z.array(ScoreNarration),
+  narrations: lenientArray(z.array(ScoreNarration)),
   consistencyAnalysis: z.string().max(2500),
   trustReview: z.string().max(1800),
   performanceImpact: z.string().max(1500),

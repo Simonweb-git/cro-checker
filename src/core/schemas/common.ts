@@ -1,6 +1,32 @@
 import { z } from 'zod';
 
 /**
+ * A live failure showed a model occasionally emits an array-typed tool argument as a JSON-encoded
+ * STRING instead of a native array (`"assessments": "[{...}]"` instead of `"assessments": [{...}]`).
+ * The type is otherwise valid JSON, just double-serialized. Rather than losing the whole batch to a
+ * type mismatch, this parses a string value before the array schema runs, matching wherever a model
+ * generation schema has an array field.
+ */
+function parseIfStringified(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value; // let the array schema produce the real validation error
+  }
+}
+
+/**
+ * Wraps an already-built array schema (so `.min()`/`.max()` can still be chained on it beforehand)
+ * with the string-parsing preprocessor above.
+ */
+export function lenientArray<T extends z.ZodTypeAny>(
+  arraySchema: T,
+): z.ZodEffects<T> {
+  return z.preprocess(parseIfStringified, arraySchema) as unknown as z.ZodEffects<T>;
+}
+
+/**
  * Version stamps recorded on every analysis (build spec §15).
  * Without these, regression tests and rubric calibration are not interpretable.
  */

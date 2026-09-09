@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { lenientArray } from './common.js';
 
 export const QAVerdict = z.enum(['PASS', 'REVISE', 'REJECT']);
 export type QAVerdict = z.infer<typeof QAVerdict>;
@@ -13,7 +14,7 @@ export const QAItemResult = z.object({
 });
 export type QAItemResult = z.infer<typeof QAItemResult>;
 
-export const QAOutput = z.object({ results: z.array(QAItemResult) });
+export const QAOutput = z.object({ results: lenientArray(z.array(QAItemResult)) });
 export type QAOutput = z.infer<typeof QAOutput>;
 
 export const QAResults = z.object({
