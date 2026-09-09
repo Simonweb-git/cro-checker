@@ -14,6 +14,13 @@ describe('loadConfig', () => {
     });
   });
 
+  it('gives the token budget real headroom by default (regression)', () => {
+    // A live scan hit "Model budget exceeded: tokens" against the old 250k default well before
+    // finishing — the full evidence payload is re-sent on ~15 model calls per analysis.
+    const config = loadConfig({} as unknown as NodeJS.ProcessEnv);
+    expect(config.budgets.maxTokens).toBeGreaterThanOrEqual(1_000_000);
+  });
+
   it('falls back to documented model defaults when an env var exists but is an empty string (regression)', () => {
     // Reproduces the live incident: Vercel env vars added via the dashboard with no value read back
     // as "", not undefined. `??` does not catch that; `str()` must.

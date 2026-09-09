@@ -67,7 +67,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): EngineConfig {
     budgets: {
       maxDurationMs: num(env.ANALYSIS_MAX_DURATION_MS, 300_000),
       maxModelCalls: num(env.ANALYSIS_MAX_MODEL_CALLS, 24),
-      maxTokens: num(env.ANALYSIS_MAX_TOKENS, 250_000),
+      // The full evidence payload is re-sent on every signal-category call (one per dashboard/
+      // consistency category, so up to ~10 calls) plus site-context/diagnose/fix/qa/narration —
+      // roughly 15 calls total. A live 5-page scan hit the old 250k default well before finishing.
+      // This is a safety net against runaway cost, not a tight technical limit, so it is sized with
+      // real headroom rather than shaved close; re-sending the same evidence per call is a genuine
+      // future cost optimization (prompt caching), tracked separately from this budget.
+      maxTokens: num(env.ANALYSIS_MAX_TOKENS, 1_000_000),
     },
     reportLanguage: env.REPORT_LANGUAGE || null,
     persistence: env.PERSISTENCE === 'postgres' ? 'postgres' : 'memory',
