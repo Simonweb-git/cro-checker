@@ -6,6 +6,9 @@ import { normalizeRootUrl, assertUrlAllowed, UrlBlockedError } from '../../../co
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
+// POST is dynamic by default in Next.js, but forced explicitly rather than relied upon — the same
+// static-caching bug that hid env var changes on /api/health must never silently apply here.
+export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/analysis — creates a job and returns analysisId immediately (build spec §7).

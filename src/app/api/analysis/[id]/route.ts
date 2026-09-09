@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getRepository } from '../../../../lib/store.js';
 
 export const runtime = 'nodejs';
+// A dynamic [id] segment already makes this route dynamic in practice, but force it explicitly —
+// this is the exact route that must poll live state, never a frozen build-time response.
+export const dynamic = 'force-dynamic';
 
 /** GET /api/analysis/:id — status while running, FinalReport once the job is terminal. */
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {

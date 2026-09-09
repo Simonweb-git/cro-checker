@@ -3,6 +3,10 @@ import { getConfig, getRepository } from '../../../lib/store.js';
 import { createAnalysisJob } from '../../../core/pipeline/orchestrator.js';
 
 export const runtime = 'nodejs';
+// This route has no dynamic path segments and reads no request data, so Next.js would otherwise be
+// free to render it once at build time and serve that frozen response forever — silently ignoring
+// every later env var change and every redeploy. Force it to run fresh on every request.
+export const dynamic = 'force-dynamic';
 
 /**
  * Diagnostic endpoint — reports whether persistence is actually configured and reachable, without
