@@ -16,6 +16,10 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const config = getConfig();
   const base = {
+    // Vercel injects this automatically per deployment — confirms which commit is actually serving
+    // this response, so "did the fix actually deploy" is never a guess again.
+    gitCommitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+    models: config.models,
     persistence: config.persistence,
     hasDatabaseUrl: Boolean(config.databaseUrl),
     nodeEnv: config.nodeEnv,
