@@ -77,16 +77,35 @@ export class VercelModelClient implements ModelClient {
   }
 }
 
+interface ZodLikeIssue {
+  path?: Array<string | number>;
+  message?: string;
+}
+
+/** Duck-types Zod's error shape without importing zod's internal error class directly. */
+function extractZodIssues(error: unknown): ZodLikeIssue[] | null {
+  const issues = (error as { issues?: unknown })?.issues;
+  return Array.isArray(issues) ? (issues as ZodLikeIssue[]) : null;
+}
+
 /**
  * `AI_NoObjectGeneratedError` normally just says "response did not match schema" with no detail on
- * WHAT was wrong, which made a real live failure undiagnosable from the job's error field alone. This
- * surfaces the model's actual raw output (truncated) and the underlying Zod validation issue.
+ * WHICH field was wrong — a live failure was undiagnosable from the job's error field alone even
+ * after adding `.text`/`.cause`, because both were dumped as truncated raw JSON instead of the actual
+ * Zod issue. The real chain is NoObjectGeneratedError.cause -> TypeValidationError.cause -> ZodError
+ * (with `.issues`); this walks it and reports "path: message" for each concrete issue when present.
  */
 function describeModelError(error: unknown): string {
   if (NoObjectGeneratedError.isInstance(error)) {
-    const rawText = error.text ? error.text.slice(0, 800) : '(no raw text captured)';
-    const cause = error.cause ? String((error.cause as Error).message ?? error.cause).slice(0, 800) : '(no cause)';
-    return `${error.message} | finishReason=${error.finishReason} | cause=${cause} | rawText=${rawText}`;
+    const typeValidationError = error.cause as { cause?: unknown; value?: unknown } | undefined;
+    const zodIssues = extractZodIssues(typeValidationError?.cause) ?? extractZodIssues(error.cause);
+    const issueSummary = zodIssues
+      ? zodIssues.map((issue) => `${(issue.path ?? []).join('.') || '(root)'}: ${issue.message ?? 'invalid'}`).join(' | ')
+      : null;
+    const rawText = error.text ? error.text.slice(0, 1500) : '(no raw text captured)';
+    return issueSummary
+      ? `${error.message} | issues: ${issueSummary} | rawText=${rawText}`
+      : `${error.message} | finishReason=${error.finishReason} | cause=${String((error.cause as Error)?.message ?? error.cause).slice(0, 800)} | rawText=${rawText}`;
   }
   return String(error);
 }
