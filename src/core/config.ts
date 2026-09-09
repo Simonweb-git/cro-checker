@@ -25,15 +25,23 @@ const num = (value: string | undefined, fallback: number): number => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+/**
+ * `??` only falls back on null/undefined, not on an empty string — and an env var that exists but
+ * was saved with no value (as happened live: several MODEL_* vars were added in the Vercel dashboard
+ * with a blank value) reads back as `""`, not undefined. That silently produced an empty model name
+ * instead of the documented default. Every string env default goes through this instead.
+ */
+const str = (value: string | undefined, fallback: string): string => (value ? value : fallback);
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): EngineConfig {
   return {
     models: {
-      siteContext: env.MODEL_SITECONTEXT ?? 'claude-sonnet-5',
-      signals: env.MODEL_SIGNALS ?? 'claude-sonnet-5',
-      diagnostic: env.MODEL_DIAGNOSTIC ?? 'claude-opus-5',
-      fix: env.MODEL_FIX ?? 'claude-opus-5',
-      qa: env.MODEL_QA ?? 'gpt-5',
-      modelConfigVersion: env.MODEL_CONFIG_VERSION ?? 'mc-v1',
+      siteContext: str(env.MODEL_SITECONTEXT, 'claude-sonnet-5'),
+      signals: str(env.MODEL_SIGNALS, 'claude-sonnet-5'),
+      diagnostic: str(env.MODEL_DIAGNOSTIC, 'claude-opus-5'),
+      fix: str(env.MODEL_FIX, 'claude-opus-5'),
+      qa: str(env.MODEL_QA, 'gpt-5'),
+      modelConfigVersion: str(env.MODEL_CONFIG_VERSION, 'mc-v1'),
     },
     keys: {
       anthropic: env.ANTHROPIC_API_KEY || undefined,
@@ -48,7 +56,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): EngineConfig {
       maxBytes: num(env.CRAWL_MAX_BYTES, 2_500_000),
       maxRequests: num(env.CRAWL_MAX_REQUESTS, 45),
       timeoutMs: num(env.CRAWL_TIMEOUT_MS, 15_000),
-      userAgent: env.CRAWL_USER_AGENT ?? 'CROCheckerBot/0.1',
+      userAgent: str(env.CRAWL_USER_AGENT, 'CROCheckerBot/0.1'),
       respectRobots: env.CRAWL_RESPECT_ROBOTS !== 'false',
     },
     performance: {
@@ -64,7 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): EngineConfig {
     reportLanguage: env.REPORT_LANGUAGE || null,
     persistence: env.PERSISTENCE === 'postgres' ? 'postgres' : 'memory',
     databaseUrl: resolveDatabaseUrl(env),
-    nodeEnv: env.NODE_ENV ?? 'development',
+    nodeEnv: str(env.NODE_ENV, 'development'),
   };
 }
 
