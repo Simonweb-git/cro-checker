@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateObject, NoObjectGeneratedError } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import type { z } from 'zod';
@@ -71,6 +71,22 @@ export class VercelModelClient implements ModelClient {
         lastError = error;
       }
     }
-    throw new Error(`Model call failed for stage ${options.stage} after 3 attempts: ${String(lastError)}`);
+    throw new Error(
+      `Model call failed for stage ${options.stage} after 3 attempts: ${describeModelError(lastError)}`,
+    );
   }
+}
+
+/**
+ * `AI_NoObjectGeneratedError` normally just says "response did not match schema" with no detail on
+ * WHAT was wrong, which made a real live failure undiagnosable from the job's error field alone. This
+ * surfaces the model's actual raw output (truncated) and the underlying Zod validation issue.
+ */
+function describeModelError(error: unknown): string {
+  if (NoObjectGeneratedError.isInstance(error)) {
+    const rawText = error.text ? error.text.slice(0, 800) : '(no raw text captured)';
+    const cause = error.cause ? String((error.cause as Error).message ?? error.cause).slice(0, 800) : '(no cause)';
+    return `${error.message} | finishReason=${error.finishReason} | cause=${cause} | rawText=${rawText}`;
+  }
+  return String(error);
 }
