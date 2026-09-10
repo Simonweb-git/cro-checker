@@ -11,13 +11,21 @@ interface StatusResponse {
   selectedPages: Array<{ url: string; pageType: string; selectionReason: string }>;
   error: string | null;
   partialReasons: string[];
+  createdAt: string;
 }
+
+// If the backing serverless function is killed mid-run (e.g. hits its execution ceiling), nothing
+// ever sets the job to "failed" — it simply stops updating. Without this, that reads to a user as an
+// infinite spinner with no explanation. Keeps polling regardless (the job may yet resolve), but stops
+// pretending everything is normal past a threshold no real scan should take.
+const STUCK_THRESHOLD_MS = 4 * 60 * 1000;
 
 export default function AnalysisProgressPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
+  const [stuck, setStuck] = useState(false);
   const redirected = useRef(false);
 
   useEffect(() => {
@@ -52,6 +60,7 @@ export default function AnalysisProgressPage() {
         if (cancelled) return;
         setStatus(data);
         setPollError(null);
+        setStuck(Date.now() - new Date(data.createdAt).getTime() > STUCK_THRESHOLD_MS);
 
         if (['completed', 'partial'].includes(data.stage) && !redirected.current) {
           redirected.current = true;
@@ -85,6 +94,13 @@ export default function AnalysisProgressPage() {
         <div className="url">{status?.rootUrl ?? '…'}</div>
 
         {pollError && <div className="error-banner">{pollError}</div>}
+        {stuck && status?.stage !== 'failed' && (
+          <div className="error-banner">
+            This is taking noticeably longer than a normal scan. It may still finish — this page
+            keeps checking — but if nothing changes for a while, please{' '}
+            <a href="/">start a new scan</a> instead of waiting indefinitely.
+          </div>
+        )}
 
         {status?.stage === 'failed' ? (
           <div className="error-banner">
