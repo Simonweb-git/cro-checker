@@ -327,7 +327,11 @@ export async function runAnalysis(
         context,
         scores,
         findings,
-        model: config.models.diagnostic,
+        // Narration only explains scores the engine already calculated (reasoning spec §12) — a
+        // much lighter task than diagnosis, and a live run showed the slower Opus model here pushing
+        // total pipeline time past the platform's 300s ceiling. Sonnet is the right fit for this
+        // stage on its own merits, not just a speed workaround.
+        model: config.models.signals,
         client: modelClient,
       }),
     );
