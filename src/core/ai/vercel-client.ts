@@ -98,6 +98,30 @@ function extractZodIssues(error: unknown): ZodLikeIssue[] | null {
 }
 
 /**
+ * For an "Expected array, received string" issue, walks `value` to the offending field and tries
+ * JSON.parse on it directly, reporting the exact SyntaxError (position included) and enough of the
+ * string around that position to see what's actually there — instead of guessing from a slice of
+ * unrelated raw text.
+ */
+function diagnoseStringField(value: unknown, issues: ZodLikeIssue[] | null): string {
+  const target = issues?.find((issue) => issue.message === 'Expected array, received string');
+  if (!target?.path || typeof value !== 'object' || value === null) return '';
+  let node: unknown = value;
+  for (const key of target.path) {
+    if (typeof node !== 'object' || node === null) return '';
+    node = (node as Record<string | number, unknown>)[key];
+  }
+  if (typeof node !== 'string') return '';
+  try {
+    JSON.parse(node);
+    return ` | stringFieldParsesFine(len=${node.length})`;
+  } catch (parseError) {
+    const message = String((parseError as Error)?.message ?? parseError);
+    return ` | stringFieldParseError="${message}" len=${node.length} tail="${node.slice(-200)}"`;
+  }
+}
+
+/**
  * `AI_NoObjectGeneratedError` normally just says "response did not match schema" with no detail on
  * WHICH field was wrong — a live failure was undiagnosable from the job's error field alone even
  * after adding `.text`/`.cause`, because both were dumped as truncated raw JSON instead of the actual
@@ -111,12 +135,16 @@ function describeModelError(error: unknown): string {
     const issueSummary = zodIssues
       ? zodIssues.map((issue) => `${(issue.path ?? []).join('.') || '(root)'}: ${issue.message ?? 'invalid'}`).join(' | ')
       : null;
-    const rawText = error.text ? error.text.slice(0, 1500) : '(no raw text captured)';
+    // For the specific "expected array, received string" shape: the outer JSON already parsed fine
+    // (that's how we have a typed `value` at all) — try to JSON.parse the offending string field
+    // directly and report the exact parse error, instead of guessing from a truncated text dump.
+    const stringFieldDiagnosis = diagnoseStringField(typeValidationError?.value, zodIssues);
+    const rawText = error.text ? error.text.slice(0, 4000) : '(no raw text captured)';
     // finishReason="length" is the direct signal for a maxOutputTokens truncation, and it was
     // getting dropped whenever a Zod issue was ALSO found — exactly the case where knowing whether
     // the model ran out of tokens mid-generation (vs. genuinely produced a wrong shape) matters most.
     return issueSummary
-      ? `${error.message} | finishReason=${error.finishReason} | issues: ${issueSummary} | rawText=${rawText}`
+      ? `${error.message} | finishReason=${error.finishReason} | issues: ${issueSummary}${stringFieldDiagnosis} | rawText=${rawText}`
       : `${error.message} | finishReason=${error.finishReason} | cause=${String((error.cause as Error)?.message ?? error.cause).slice(0, 800)} | rawText=${rawText}`;
   }
   return String(error);
