@@ -12,7 +12,20 @@ function parseIfStringified(value: unknown): unknown {
   try {
     return JSON.parse(value);
   } catch {
-    return value; // let the array schema produce the real validation error
+    // Live failure: the string was a complete, valid `[...]` array with one stray trailing
+    // character after it (an extra `}` the model duplicated from the outer object) — e.g.
+    // `[{...}]}`. JSON.parse rejects any non-whitespace after a complete value, with no partial-
+    // parse option. Retry against just the substring up to the LAST `]`, which recovers exactly
+    // this shape; if the content legitimately contains a `]` inside a string field, that retry
+    // fails too and falls through to the original value, so this can only ever recover a strictly
+    // narrower set of inputs than it rejects, never accept something structurally wrong.
+    const lastBracket = value.lastIndexOf(']');
+    if (lastBracket === -1) return value;
+    try {
+      return JSON.parse(value.slice(0, lastBracket + 1));
+    } catch {
+      return value; // let the array schema produce the real validation error
+    }
   }
 }
 

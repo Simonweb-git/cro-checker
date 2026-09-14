@@ -21,6 +21,35 @@ describe('lenientArray', () => {
   it('produces a real validation error for a non-JSON string, not a silent pass', () => {
     expect(() => schema.parse({ items: 'not json' })).toThrow();
   });
+
+  it('recovers a complete array with one stray trailing character (live failure shape)', () => {
+    // The model duplicated the outer object's closing brace into the string:
+    // `{"assessments": "[...]}" }` — a complete, valid array followed by one extra `}`.
+    expect(schema.parse({ items: '[1,2,3]}' })).toEqual({ items: [1, 2, 3] });
+  });
+
+  it('recovers the valid array prefix even when more trails after the stray character', () => {
+    // Whatever comes after the array's real closing bracket is discarded, not guessed at.
+    expect(schema.parse({ items: '[1,2,3]}{"extra":"object"}' })).toEqual({ items: [1, 2, 3] });
+  });
+
+  it('does not recover a genuinely incomplete array (missing closing bracket entirely)', () => {
+    expect(() => schema.parse({ items: '[1,2,3' })).toThrow();
+  });
+
+  it('still finds the real closing bracket when content contains "]" earlier in the string', () => {
+    const withBracketInContent = z.object({
+      items: lenientArray(z.array(z.object({ note: z.string() }))),
+    });
+    // lastIndexOf finds the array's actual closing bracket (the last one), not the one embedded in
+    // the note text, so recovery still lands on the correct, complete substring either way.
+    expect(withBracketInContent.parse({ items: '[{"note":"see item [2]"}]x' })).toEqual({
+      items: [{ note: 'see item [2]' }],
+    });
+    expect(withBracketInContent.parse({ items: '[{"note":"see item [2]"}]' })).toEqual({
+      items: [{ note: 'see item [2]' }],
+    });
+  });
 });
 
 describe('SignalBatchOutput accepts the exact live failure shape', () => {
