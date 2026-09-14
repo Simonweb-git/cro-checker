@@ -85,8 +85,11 @@ async function classifyCategory(
     system: SIGNAL_SYSTEM,
     temperature: 0,
     // Up to 4 signals per category with an unbounded-until-truncated rationale each — see the same
-    // note on diagnose.ts's maxOutputTokens.
-    maxOutputTokens: 6000,
+    // note on diagnose.ts's maxOutputTokens. Raised further after a live failure: when a model
+    // double-serializes the array as a JSON-encoded STRING (schemas/common.ts's lenientArray exists
+    // for exactly that), every quote in the payload gets backslash-escaped, inflating token count for
+    // the same content — making truncation more likely in that shape specifically, not less.
+    maxOutputTokens: 10000,
     prompt: [
       `Site context (already established by the engine): ${JSON.stringify({
         siteArchetype: ctx.context.siteArchetype.value,
