@@ -65,11 +65,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): EngineConfig {
       timeoutMs: num(env.PERFORMANCE_TIMEOUT_MS, 25_000),
     },
     budgets: {
-      // Kept below the Vercel function's maxDuration (800s, api/analysis/route.ts) with headroom for
-      // final report assembly and the repository writes after the last budgetGuard() check — a live
-      // run showed the full pipeline (site-context + diagnose + fix on Opus + qa + narration)
-      // approaching 300s end to end, so 300s alone left no margin.
-      maxDurationMs: num(env.ANALYSIS_MAX_DURATION_MS, 700_000),
+      // 300s is this plan's hard ceiling for api/analysis/route.ts (Vercel rejects the deploy above
+      // it, does not clamp — confirmed live). Kept a little under it so the orchestrator's own
+      // budgetGuard() can fail the job cleanly with a real error before the platform kills the
+      // function outright and leaves the job stuck with none recorded.
+      maxDurationMs: num(env.ANALYSIS_MAX_DURATION_MS, 270_000),
       maxModelCalls: num(env.ANALYSIS_MAX_MODEL_CALLS, 24),
       // The full evidence payload is re-sent on every signal-category call (one per dashboard/
       // consistency category, so up to ~10 calls) plus site-context/diagnose/fix/qa/narration —

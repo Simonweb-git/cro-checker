@@ -6,3 +6,5 @@ eval-runs/
 *.tsbuildinfo
 .DS_Store
 *.tsbuildinfo
+.vercel
+.env*

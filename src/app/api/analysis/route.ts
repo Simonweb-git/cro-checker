@@ -5,12 +5,13 @@ import { createAnalysisJob, runAnalysis } from '../../../core/pipeline/orchestra
 import { normalizeRootUrl, assertUrlAllowed, UrlBlockedError } from '../../../core/security/url-guard.js';
 
 export const runtime = 'nodejs';
-// A live run showed the cumulative pipeline (site-context + ~10 parallel signal calls + diagnose +
-// fix, both on the slower/higher-quality Opus model + qa + narration) taking close to 5 minutes end
-// to end, which the platform killed mid-QA with no error ever recorded (see the job-hang notes in
-// ScheduleWakeup history / commit history). Requesting the higher ceiling here; Vercel clamps this
-// down to whatever the actual plan/compute mode allows if 800s isn't available, so it's safe to ask.
-export const maxDuration = 800;
+// 300s is this project's actual plan ceiling — Vercel HARD-REJECTS the deploy for a higher value
+// (confirmed live: "the value for maxDuration must be between 1 second and 300 seconds"), it does
+// not silently clamp. Do not raise this without confirming the plan supports it; the real fix for a
+// pipeline that needs more than 300s is durable, checkpointed orchestration (Vercel Workflows,
+// ADR-002) or reducing per-call latency (parallelized signal calls, ai/stages/signals.ts), not a
+// bigger ceiling.
+export const maxDuration = 300;
 // POST is dynamic by default in Next.js, but forced explicitly rather than relied upon — the same
 // static-caching bug that hid env var changes on /api/health must never silently apply here.
 export const dynamic = 'force-dynamic';
