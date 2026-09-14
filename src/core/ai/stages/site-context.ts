@@ -20,6 +20,9 @@ export async function runSiteContextStage(input: SiteContextStageInput): Promise
     system: SITE_CONTEXT_SYSTEM,
     prompt: `Infer the conversion context for this website.\n\n${fenceEvidence(evidencePayload(input.evidence))}`,
     temperature: 0,
+    // One object with a few long-ish fields (notes up to 1200 chars) — see the same note on
+    // diagnose.ts's maxOutputTokens.
+    maxOutputTokens: 4000,
   });
 
   // Refs the model invented are stripped rather than trusted; confidence drops if that empties a field.

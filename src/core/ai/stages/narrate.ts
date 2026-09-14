@@ -23,6 +23,9 @@ export async function runNarrationStage(input: NarrationStageInput) {
     stage: 'narration',
     system: NARRATION_SYSTEM,
     temperature: 0.2,
+    // Up to ~11 category narrations plus three longer prose fields — see the same note on
+    // diagnose.ts's maxOutputTokens.
+    maxOutputTokens: 8000,
     prompt: [
       languageDirective(input.context.reportLanguage),
       '',

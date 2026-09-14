@@ -34,6 +34,9 @@ export async function runQAStage(input: QAStageInput): Promise<QAStageResult> {
     stage: 'qa',
     system: QA_SYSTEM,
     temperature: 0,
+    // One verdict per finding+fix, each with reason/revisionInstruction up to 1200 chars — see the
+    // same note on diagnose.ts's maxOutputTokens.
+    maxOutputTokens: 12000,
     prompt: [
       `Engine-established site context: ${JSON.stringify({
         siteArchetype: input.context.siteArchetype.value,

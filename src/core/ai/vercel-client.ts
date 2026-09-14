@@ -112,8 +112,11 @@ function describeModelError(error: unknown): string {
       ? zodIssues.map((issue) => `${(issue.path ?? []).join('.') || '(root)'}: ${issue.message ?? 'invalid'}`).join(' | ')
       : null;
     const rawText = error.text ? error.text.slice(0, 1500) : '(no raw text captured)';
+    // finishReason="length" is the direct signal for a maxOutputTokens truncation, and it was
+    // getting dropped whenever a Zod issue was ALSO found — exactly the case where knowing whether
+    // the model ran out of tokens mid-generation (vs. genuinely produced a wrong shape) matters most.
     return issueSummary
-      ? `${error.message} | issues: ${issueSummary} | rawText=${rawText}`
+      ? `${error.message} | finishReason=${error.finishReason} | issues: ${issueSummary} | rawText=${rawText}`
       : `${error.message} | finishReason=${error.finishReason} | cause=${String((error.cause as Error)?.message ?? error.cause).slice(0, 800)} | rawText=${rawText}`;
   }
   return String(error);

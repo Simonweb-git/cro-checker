@@ -23,6 +23,10 @@ export async function runDiagnosticStage(input: DiagnosticStageInput): Promise<D
     stage: 'diagnostic',
     system: DIAGNOSTIC_SYSTEM,
     temperature: 0.2,
+    // Up to 5 findings x 4 long fields (each up to 1500 chars, findings.ts) can exceed the 4000-token
+    // default and truncate mid-generation — a live failure returned an empty {} after 3 attempts,
+    // which is exactly that: not a schema mismatch, an incomplete tool call.
+    maxOutputTokens: 16000,
     prompt: [
       languageDirective(input.context.reportLanguage),
       '',

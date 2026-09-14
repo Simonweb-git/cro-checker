@@ -26,6 +26,9 @@ export async function runFixStage(input: FixStageInput): Promise<FixSet> {
     stage: 'fix',
     system: FIX_SYSTEM,
     temperature: 0.3,
+    // Up to 12 fixes with several long fields each can exceed the 4000-token default — see the same
+    // note on diagnose.ts's maxOutputTokens.
+    maxOutputTokens: 16000,
     prompt: [
       languageDirective(input.context.reportLanguage),
       '',

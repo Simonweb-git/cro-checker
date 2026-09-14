@@ -84,6 +84,9 @@ async function classifyCategory(
     stage: `signals:${category.categoryId}`,
     system: SIGNAL_SYSTEM,
     temperature: 0,
+    // Up to 4 signals per category with an unbounded-until-truncated rationale each — see the same
+    // note on diagnose.ts's maxOutputTokens.
+    maxOutputTokens: 6000,
     prompt: [
       `Site context (already established by the engine): ${JSON.stringify({
         siteArchetype: ctx.context.siteArchetype.value,
