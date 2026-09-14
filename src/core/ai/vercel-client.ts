@@ -26,7 +26,16 @@ export class VercelModelClient implements ModelClient {
 
   private resolve(model: string) {
     if (model.startsWith('claude')) {
-      const anthropic = createAnthropic({ apiKey: this.config.keys.anthropic ?? this.config.keys.gateway ?? '' });
+      // An org-level key not scoped to one workspace fails every request with "This API key is not
+      // scoped to a workspace" unless this header names which workspace to bill/run under (seen
+      // live). Only added when configured — a workspace-scoped key never needs it.
+      const headers = this.config.keys.anthropicWorkspaceId
+        ? { 'anthropic-workspace-id': this.config.keys.anthropicWorkspaceId }
+        : undefined;
+      const anthropic = createAnthropic({
+        apiKey: this.config.keys.anthropic ?? this.config.keys.gateway ?? '',
+        headers,
+      });
       return anthropic(model);
     }
     if (model.startsWith('gpt') || model.startsWith('o')) {

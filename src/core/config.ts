@@ -10,7 +10,7 @@ export interface EngineConfig {
     qa: string;
     modelConfigVersion: string;
   };
-  keys: { anthropic?: string; openai?: string; gateway?: string };
+  keys: { anthropic?: string; openai?: string; gateway?: string; anthropicWorkspaceId?: string };
   crawl: CrawlBudget & { adapter: 'static' | 'playwright'; maxCandidates: number; maxPages: number; respectRobots: boolean };
   performance: { adapter: 'none' | 'psi'; apiKey?: string; timeoutMs: number };
   budgets: { maxDurationMs: number; maxModelCalls: number; maxTokens: number };
@@ -47,6 +47,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): EngineConfig {
       anthropic: env.ANTHROPIC_API_KEY || undefined,
       openai: env.OPENAI_API_KEY || undefined,
       gateway: env.AI_GATEWAY_API_KEY || undefined,
+      // Only needed for an org-level Anthropic key not scoped to one workspace — see vercel-client.ts.
+      anthropicWorkspaceId: env.ANTHROPIC_WORKSPACE_ID || undefined,
     },
     crawl: {
       adapter: env.CRAWL_ADAPTER === 'playwright' ? 'playwright' : 'static',

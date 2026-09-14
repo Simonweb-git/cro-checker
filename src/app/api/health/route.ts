@@ -27,6 +27,7 @@ export async function GET() {
     // THIS deployment (not just visible somewhere in the dashboard) without exposing its value.
     hasAnthropicKey: Boolean(config.keys.anthropic),
     anthropicKeyLooksValid: config.keys.anthropic?.startsWith('sk-ant-') ?? false,
+    hasAnthropicWorkspaceId: Boolean(config.keys.anthropicWorkspaceId),
     hasOpenAiKey: Boolean(config.keys.openai),
     openAiKeyLooksValid: config.keys.openai?.startsWith('sk-') ?? false,
     hasGatewayKey: Boolean(config.keys.gateway),
