@@ -23,6 +23,13 @@ export async function GET() {
     persistence: config.persistence,
     hasDatabaseUrl: Boolean(config.databaseUrl),
     nodeEnv: config.nodeEnv,
+    // Booleans + a shape check only — never the key itself. Confirms a key is actually present on
+    // THIS deployment (not just visible somewhere in the dashboard) without exposing its value.
+    hasAnthropicKey: Boolean(config.keys.anthropic),
+    anthropicKeyLooksValid: config.keys.anthropic?.startsWith('sk-ant-') ?? false,
+    hasOpenAiKey: Boolean(config.keys.openai),
+    openAiKeyLooksValid: config.keys.openai?.startsWith('sk-') ?? false,
+    hasGatewayKey: Boolean(config.keys.gateway),
     // Safe to expose: this is meant to be the literal word "postgres" or "memory", never a secret.
     rawPersistenceEnv: process.env.PERSISTENCE ?? null,
     databaseUrlSource: process.env.DATABASE_URL
