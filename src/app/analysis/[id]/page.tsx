@@ -17,8 +17,10 @@ interface StatusResponse {
 // If the backing serverless function is killed mid-run (e.g. hits its execution ceiling), nothing
 // ever sets the job to "failed" — it simply stops updating. Without this, that reads to a user as an
 // infinite spinner with no explanation. Keeps polling regardless (the job may yet resolve), but stops
-// pretending everything is normal past a threshold no real scan should take.
-const STUCK_THRESHOLD_MS = 4 * 60 * 1000;
+// pretending everything is normal past a threshold no real scan should take. Kept above the backend's
+// own maxDurationMs budget (700s, core/config.ts) so a legitimately still-running scan never trips
+// this first.
+const STUCK_THRESHOLD_MS = 12 * 60 * 1000;
 
 export default function AnalysisProgressPage() {
   const params = useParams<{ id: string }>();
