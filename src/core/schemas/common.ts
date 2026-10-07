@@ -28,12 +28,25 @@ function parseIfStringified(value: unknown): unknown {
       return value; // let the array schema produce the real validation error
     }
   }
-  // Live failure: for a single-item category, the model sometimes writes the one object directly
-  // as the string's content (`"assessments": "{...}"`) instead of wrapping it in `[...]`. A bare
-  // object is unambiguously meant as the sole item, not a different shape — array schemas reject
-  // objects outright, so there is no risk of this "recovering" something that was never intended as
-  // a one-item list.
-  if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) return [parsed];
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed !== null && typeof parsed === 'object') {
+    const keys = Object.keys(parsed as Record<string, unknown>);
+    // Live failure: the model re-nested the ENTIRE outer object inside the string — whatever the
+    // real field name is, it wrote `"<field>": "{\"<field>\": [...]}"` (a redundant single-key
+    // wrapper around the actual array, duplicating the structure one level too deep). Detected
+    // generically — by shape, not by hardcoding a field name — as "exactly one key, whose value is
+    // itself the array": unwrap to that array rather than treating the wrapper object as one item.
+    if (keys.length === 1) {
+      const inner = (parsed as Record<string, unknown>)[keys[0]!];
+      if (Array.isArray(inner)) return inner;
+    }
+    // Otherwise: for a single-item category, the model sometimes writes the one object directly as
+    // the string's content (`"assessments": "{...}"`) instead of wrapping it in `[...]`. A bare
+    // object is unambiguously meant as the sole item, not a different shape — array schemas reject
+    // objects outright, so there is no risk of this "recovering" something that was never intended
+    // as a one-item list.
+    return [parsed];
+  }
   return parsed;
 }
 

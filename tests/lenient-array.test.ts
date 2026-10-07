@@ -58,6 +58,14 @@ describe('lenientArray', () => {
     expect(withObject.parse({ items: '{"a":1}' })).toEqual({ items: [{ a: 1 }] });
   });
 
+  it('unwraps a redundant single-key wrapper around the real array (live failure shape)', () => {
+    // The model re-nested the whole outer object one level too deep inside the string:
+    // `"items": "{\"items\": [...]}"` instead of just `"items": "[...]"`.
+    expect(schema.parse({ items: '{"items":[1,2,3]}' })).toEqual({ items: [1, 2, 3] });
+    // Generic by shape, not by field name — an unrelated key name unwraps the same way.
+    expect(schema.parse({ items: '{"whatever":[1,2,3]}' })).toEqual({ items: [1, 2, 3] });
+  });
+
   it('does not wrap a bare stringified array element incorrectly (still a real array, not double-wrapped)', () => {
     expect(schema.parse({ items: '[1,2,3]' })).toEqual({ items: [1, 2, 3] });
   });
@@ -105,5 +113,22 @@ describe('SignalBatchOutput accepts the exact live failure shape', () => {
     const result = SignalBatchOutput.parse({ assessments: bareObject });
     expect(result.assessments).toHaveLength(1);
     expect(result.assessments[0]!.signalId).toBe('buyer_compatibility');
+  });
+
+  it('parses when the model re-nests the whole outer object inside the string (live failure shape)', () => {
+    const renested = JSON.stringify({
+      assessments: [
+        {
+          signalId: 'proof_at_commitment_stages',
+          value: 2,
+          evidenceRefs: ['page_1.trust.testimonial_1'],
+          confidence: 'medium',
+          rationale: 'ok',
+        },
+      ],
+    });
+    const result = SignalBatchOutput.parse({ assessments: renested });
+    expect(result.assessments).toHaveLength(1);
+    expect(result.assessments[0]!.signalId).toBe('proof_at_commitment_stages');
   });
 });
