@@ -55,7 +55,10 @@ export default function ReportPage() {
   if (!data) {
     return (
       <main className="shell">
-        <p style={{ marginTop: 40, color: 'var(--text-muted)' }}>Loading report…</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 64, color: 'var(--ink-faint)', fontSize: 14.5 }}>
+          <Spinner />
+          Loading report…
+        </div>
       </main>
     );
   }
@@ -253,19 +256,23 @@ function StandardReportView({ report }: { report: StandardReport }) {
 }
 
 function Dashboard({ report }: { report: StandardReport }) {
+  const overall = report.scores.overall;
   return (
     <div className="dashboard">
       <div className="score-card overall-card">
+        {overall.status === 'available' && <ScoreRing score={overall.score} band={overall.band} />}
         <div>
           <div className="label">Overall CRO Health</div>
-          {report.scores.overall.status === 'available' ? (
+          {overall.status === 'available' ? (
             <>
-              <div className={`value band-${report.scores.overall.band}`}>{report.scores.overall.score}</div>
-              <div className={`band band-${report.scores.overall.band}`}>{report.scores.overall.band}</div>
+              <div className="value" style={{ color: '#fff' }}>
+                {overall.score}
+              </div>
+              <div className={`band band-${overall.band}`}>{overall.band}</div>
             </>
           ) : (
-            <div className="value" style={{ fontSize: 16 }}>
-              Unavailable — {report.scores.overall.reason}
+            <div className="value" style={{ fontSize: 16, color: '#fff' }}>
+              Unavailable — {overall.reason}
             </div>
           )}
         </div>
@@ -274,6 +281,48 @@ function Dashboard({ report }: { report: StandardReport }) {
         <ScoreCard key={category.categoryId} category={category} />
       ))}
     </div>
+  );
+}
+
+const BAND_COLOR: Record<string, string> = {
+  Excellent: '#059669',
+  Strong: '#16a34a',
+  Average: '#d97706',
+  Weak: '#ea580c',
+  Critical: '#dc2626',
+};
+
+function ScoreRing({ score, band }: { score: number; band: string }) {
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - score / 100);
+  const color = BAND_COLOR[band] ?? '#8b5cf6';
+  return (
+    <svg width="84" height="84" viewBox="0 0 84 84" className="overall-ring" aria-hidden="true">
+      <circle cx="42" cy="42" r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="7" />
+      <circle
+        cx="42"
+        cy="42"
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth="7"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform="rotate(-90 42 42)"
+      />
+    </svg>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+      <circle cx="12" cy="12" r="9" stroke="var(--border)" strokeWidth="3" />
+      <path d="M21 12a9 9 0 00-9-9" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" />
+      <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
+    </svg>
   );
 }
 
