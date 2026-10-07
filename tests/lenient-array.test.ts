@@ -50,6 +50,17 @@ describe('lenientArray', () => {
       items: [{ note: 'see item [2]' }],
     });
   });
+
+  it('wraps a bare stringified object as a one-item array (live failure shape)', () => {
+    // For a single-signal category, the model wrote the one object directly as the string's
+    // content, forgetting the array brackets entirely: `"assessments": "{...}"`.
+    const withObject = z.object({ items: lenientArray(z.array(z.object({ a: z.number() }))) });
+    expect(withObject.parse({ items: '{"a":1}' })).toEqual({ items: [{ a: 1 }] });
+  });
+
+  it('does not wrap a bare stringified array element incorrectly (still a real array, not double-wrapped)', () => {
+    expect(schema.parse({ items: '[1,2,3]' })).toEqual({ items: [1, 2, 3] });
+  });
 });
 
 describe('SignalBatchOutput accepts the exact live failure shape', () => {
@@ -81,5 +92,18 @@ describe('SignalBatchOutput accepts the exact live failure shape', () => {
       ],
     });
     expect(result.assessments[0]!.evidenceRefs).toEqual(['page_1.hero.headline', 'page_1.section_1']);
+  });
+
+  it('parses when a single-signal category writes a bare object instead of a one-item array', () => {
+    const bareObject = JSON.stringify({
+      signalId: 'buyer_compatibility',
+      value: 4,
+      evidenceRefs: ['page_1.hero.headline'],
+      confidence: 'high',
+      rationale: 'ok',
+    });
+    const result = SignalBatchOutput.parse({ assessments: bareObject });
+    expect(result.assessments).toHaveLength(1);
+    expect(result.assessments[0]!.signalId).toBe('buyer_compatibility');
   });
 });

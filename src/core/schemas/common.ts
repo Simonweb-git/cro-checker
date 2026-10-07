@@ -9,8 +9,9 @@ import { z } from 'zod';
  */
 function parseIfStringified(value: unknown): unknown {
   if (typeof value !== 'string') return value;
+  let parsed: unknown;
   try {
-    return JSON.parse(value);
+    parsed = JSON.parse(value);
   } catch {
     // Live failure: the string was a complete, valid `[...]` array with one stray trailing
     // character after it (an extra `}` the model duplicated from the outer object) — e.g.
@@ -22,11 +23,18 @@ function parseIfStringified(value: unknown): unknown {
     const lastBracket = value.lastIndexOf(']');
     if (lastBracket === -1) return value;
     try {
-      return JSON.parse(value.slice(0, lastBracket + 1));
+      parsed = JSON.parse(value.slice(0, lastBracket + 1));
     } catch {
       return value; // let the array schema produce the real validation error
     }
   }
+  // Live failure: for a single-item category, the model sometimes writes the one object directly
+  // as the string's content (`"assessments": "{...}"`) instead of wrapping it in `[...]`. A bare
+  // object is unambiguously meant as the sole item, not a different shape — array schemas reject
+  // objects outright, so there is no risk of this "recovering" something that was never intended as
+  // a one-item list.
+  if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) return [parsed];
+  return parsed;
 }
 
 /**
