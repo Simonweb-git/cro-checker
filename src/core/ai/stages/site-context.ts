@@ -18,7 +18,13 @@ export async function runSiteContextStage(input: SiteContextStageInput): Promise
   const { data } = await input.client.generateStructured(input.model, SiteContextOutput, {
     stage: 'site_context',
     system: SITE_CONTEXT_SYSTEM,
-    prompt: `Infer the conversion context for this website.\n\n${fenceEvidence(evidencePayload(input.evidence))}`,
+    prompt: 'Infer the conversion context for this website.',
+    // Marking evidence cacheable lets a provider that supports prompt caching (Anthropic) skip
+    // reprocessing it from scratch on this call's own internal retries. Cache hits require the whole
+    // prefix (including the system prompt) to match, so this does not carry across to other stages
+    // with different system text — see signals.ts for the stage where repetition is actually high
+    // (one evidence-identical call per category, same system prompt, genuine cache reuse).
+    cacheableContext: fenceEvidence(evidencePayload(input.evidence)),
     temperature: 0,
     // One object with a few long-ish fields (notes up to 1200 chars) — see the same note on
     // diagnose.ts's maxOutputTokens.

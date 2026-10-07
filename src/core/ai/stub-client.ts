@@ -16,8 +16,14 @@ export class StubModelClient implements ModelClient {
   async generateStructured<T>(
     model: string,
     schema: z.ZodType<T>,
-    options: ModelCallOptions,
+    rawOptions: ModelCallOptions,
   ): Promise<ModelResult<T>> {
+    // cacheableContext (normally the fenced evidence payload) and prompt are a single logical
+    // request to a real provider — recombine them so every helper below keeps working unchanged
+    // regardless of which field the caller put the evidence in.
+    const options: ModelCallOptions = rawOptions.cacheableContext
+      ? { ...rawOptions, prompt: `${rawOptions.cacheableContext}\n\n${rawOptions.prompt}` }
+      : rawOptions;
     const evidence = parseEvidence(options.prompt);
     const raw = this.build(options, evidence);
     const parsed = schema.safeParse(raw);

@@ -90,6 +90,11 @@ async function classifyCategory(
     // for exactly that), every quote in the payload gets backslash-escaped, inflating token count for
     // the same content — making truncation more likely in that shape specifically, not less.
     maxOutputTokens: 10000,
+    // Every category call this stage makes shares the identical system prompt AND evidence payload —
+    // the ~10 calls differ only in which signals are being asked about. That makes this the one place
+    // in the pipeline where prompt caching has a real shot at being reused across calls, not just
+    // within one call's own retries (vercel-client.ts's buildPrompt).
+    cacheableContext: fenceEvidence(evidencePayload(ctx.evidence)),
     prompt: [
       `Site context (already established by the engine): ${JSON.stringify({
         siteArchetype: ctx.context.siteArchetype.value,
@@ -101,8 +106,6 @@ async function classifyCategory(
       ...askable.map(
         (s) => `- ${s.signalId}${s.inverted ? ' [INVERTED: 4 = little/none of the negative thing]' : ''}: ${s.definition}`,
       ),
-      '',
-      fenceEvidence(evidencePayload(ctx.evidence)),
     ].join('\n'),
   });
 

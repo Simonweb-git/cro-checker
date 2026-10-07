@@ -57,7 +57,7 @@ export class VercelModelClient implements ModelClient {
           model: this.resolve(model),
           schema: schema as any,
           system: options.system,
-          prompt: options.prompt,
+          prompt: buildPrompt(options, model) as any,
           temperature: options.temperature ?? 0.2,
           maxOutputTokens: options.maxOutputTokens ?? 4000,
         });
@@ -84,6 +84,33 @@ export class VercelModelClient implements ModelClient {
       `Model call failed for stage ${options.stage} after 3 attempts: ${describeModelError(lastError)}`,
     );
   }
+}
+
+/**
+ * When the caller provides `cacheableContext` (normally the fenced evidence payload — large and
+ * byte-identical across a stage's repeated calls and across one call's own internal retries), marks
+ * it as an Anthropic prompt-cache breakpoint ahead of the task-specific `prompt` text. A repeat with
+ * the same prefix is served from cache instead of being reprocessed from scratch: faster and
+ * cheaper. OpenAI (the QA stage) already caches long, repeated prompt prefixes automatically with no
+ * special markup, so this only needs to do anything for Claude models.
+ */
+export function buildPrompt(options: ModelCallOptions, model: string): string | Array<Record<string, unknown>> {
+  if (!options.cacheableContext || !model.startsWith('claude')) {
+    return options.cacheableContext ? `${options.cacheableContext}\n\n${options.prompt}` : options.prompt;
+  }
+  return [
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: options.cacheableContext,
+          providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+        },
+        { type: 'text', text: options.prompt },
+      ],
+    },
+  ];
 }
 
 interface ZodLikeIssue {

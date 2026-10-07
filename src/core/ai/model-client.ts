@@ -9,6 +9,16 @@ export interface ModelCallOptions {
   system: string;
   /** Trusted task framing; untrusted evidence is fenced inside by the caller. */
   prompt: string;
+  /**
+   * The large, stable block (normally the fenced evidence payload) that is byte-identical across
+   * this analysis's calls within a stage and across a single call's internal retries. Implementations
+   * that support provider-side prompt caching (VercelModelClient, for Anthropic models) mark this as
+   * a cache breakpoint placed BEFORE `prompt` in the request, so a repeat with the same prefix is
+   * cheaper and faster instead of being reprocessed from scratch. Optional — omit for a stage with
+   * nothing worth caching. Never a substitute for the untrusted-data framing already applied by the
+   * caller; this is purely a performance hint.
+   */
+  cacheableContext?: string;
   temperature?: number;
   maxOutputTokens?: number;
   stage: string;

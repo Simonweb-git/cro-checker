@@ -29,6 +29,9 @@ export async function runFixStage(input: FixStageInput): Promise<FixSet> {
     // Up to 12 fixes with several long fields each can exceed the 4000-token default — see the same
     // note on diagnose.ts's maxOutputTokens.
     maxOutputTokens: 16000,
+    // See signals.ts: most valuable for this call's own internal retries, since fix only runs once
+    // per analysis.
+    cacheableContext: fenceEvidence(evidencePayload(input.evidence)),
     prompt: [
       languageDirective(input.context.reportLanguage),
       '',
@@ -48,8 +51,6 @@ export async function runFixStage(input: FixStageInput): Promise<FixSet> {
           recommendedDirection: f.recommendedDirection,
         })),
       )}`,
-      '',
-      fenceEvidence(evidencePayload(input.evidence)),
     ].join('\n'),
   });
 

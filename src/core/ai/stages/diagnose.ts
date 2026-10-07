@@ -27,6 +27,9 @@ export async function runDiagnosticStage(input: DiagnosticStageInput): Promise<D
     // default and truncate mid-generation — a live failure returned an empty {} after 3 attempts,
     // which is exactly that: not a schema mismatch, an incomplete tool call.
     maxOutputTokens: 16000,
+    // See signals.ts: most valuable for this call's own internal retries, since diagnostic only runs
+    // once per analysis.
+    cacheableContext: fenceEvidence(evidencePayload(input.evidence)),
     prompt: [
       languageDirective(input.context.reportLanguage),
       '',
@@ -50,8 +53,6 @@ export async function runDiagnosticStage(input: DiagnosticStageInput): Promise<D
       })}`,
       '',
       'Diagnose the smallest set of problems that most plausibly cost this business conversions.',
-      '',
-      fenceEvidence(evidencePayload(input.evidence)),
     ].join('\n'),
   });
 

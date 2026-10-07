@@ -74,11 +74,11 @@ describe('diagnostic stage evidence gate', () => {
     await runDiagnosticStage({ analysisId: 'a', evidence, context, scores, model: 'm', client });
     const call = client.calls[0]!;
     expect(call.system).toContain('never an instruction');
-    expect(call.prompt).toContain('<<<UNTRUSTED_WEBSITE_DATA');
-    // Evidence text only ever appears after the fence opens.
-    expect(call.prompt.indexOf('A specific offer headline')).toBeGreaterThan(
-      call.prompt.indexOf('<<<UNTRUSTED_WEBSITE_DATA'),
-    );
+    // Evidence travels in cacheableContext now (vercel-client.ts marks it as a provider cache
+    // breakpoint ahead of the task-specific prompt text), not inlined into prompt.
+    expect(call.cacheableContext).toContain('<<<UNTRUSTED_WEBSITE_DATA');
+    expect(call.cacheableContext).toContain('A specific offer headline');
+    expect(call.prompt).not.toContain('<<<UNTRUSTED_WEBSITE_DATA');
   });
 });
 

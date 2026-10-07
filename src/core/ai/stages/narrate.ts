@@ -26,6 +26,9 @@ export async function runNarrationStage(input: NarrationStageInput) {
     // Up to ~11 category narrations plus three longer prose fields — see the same note on
     // diagnose.ts's maxOutputTokens.
     maxOutputTokens: 8000,
+    // See signals.ts: most valuable for this call's own internal retries, since narration only runs
+    // once per analysis.
+    cacheableContext: fenceEvidence(evidencePayload(input.evidence)),
     prompt: [
       languageDirective(input.context.reportLanguage),
       '',
@@ -38,8 +41,6 @@ export async function runNarrationStage(input: NarrationStageInput) {
       )}`,
       '',
       'Return one narration per dashboard AND consistency category, using the categoryId values above.',
-      '',
-      fenceEvidence(evidencePayload(input.evidence)),
     ].join('\n'),
   });
 

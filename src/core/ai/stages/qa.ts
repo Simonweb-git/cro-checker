@@ -37,6 +37,9 @@ export async function runQAStage(input: QAStageInput): Promise<QAStageResult> {
     // One verdict per finding+fix, each with reason/revisionInstruction up to 1200 chars — see the
     // same note on diagnose.ts's maxOutputTokens.
     maxOutputTokens: 12000,
+    // No-op for the OpenAI-family QA model (vercel-client.ts only special-cases Claude), but harmless
+    // to include uniformly; OpenAI already caches long repeated prefixes automatically.
+    cacheableContext: fenceEvidence(evidencePayload(input.evidence)),
     prompt: [
       `Engine-established site context: ${JSON.stringify({
         siteArchetype: input.context.siteArchetype.value,
@@ -55,8 +58,6 @@ export async function runQAStage(input: QAStageInput): Promise<QAStageResult> {
       `Candidate fixes (itemType "fix", itemId = fixId): ${JSON.stringify(input.fixes.fixes)}`,
       '',
       'Return one verdict per candidate item. Do not invent new items.',
-      '',
-      fenceEvidence(evidencePayload(input.evidence)),
     ].join('\n'),
   });
 
