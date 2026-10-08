@@ -229,6 +229,14 @@ describe('QA stage', () => {
     expect(result.findings.findings).toHaveLength(1);
     expect(result.qa.results).toHaveLength(1);
   });
+
+  it('requests low reasoning effort and verbosity (QA is a bounded checklist, not open-ended generation)', async () => {
+    const client = new FakeModelClient({ qa: { results: [] } });
+    await runQAStage({ analysisId: 'a', evidence, context, scores, findings, fixes, model: 'm', client });
+    const call = client.calls[0]!;
+    expect(call.reasoningEffort).toBe('low');
+    expect(call.textVerbosity).toBe('low');
+  });
 });
 
 describe('narration stage', () => {
@@ -256,7 +264,6 @@ describe('narration stage', () => {
       evidence,
       context,
       scores,
-      findings: { schemaVersion: 'findings-v1', analysisId: 'a', findings: [], droppedFindings: [] },
       model: 'm',
       client,
     });

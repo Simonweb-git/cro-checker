@@ -60,6 +60,7 @@ export class VercelModelClient implements ModelClient {
           prompt: buildPrompt(options, model) as any,
           temperature: options.temperature ?? 0.2,
           maxOutputTokens: options.maxOutputTokens ?? 4000,
+          providerOptions: buildProviderOptions(options, model) as any,
         });
         const price = PRICE_TABLE[model] ?? PRICE_TABLE.default!;
         const inputTokens = result.usage?.inputTokens ?? 0;
@@ -111,6 +112,26 @@ export function buildPrompt(options: ModelCallOptions, model: string): string | 
       ],
     },
   ];
+}
+
+/**
+ * OpenAI-family "reasoning models" (gpt-5 etc.) spend hidden reasoning tokens before emitting output,
+ * which the default (`medium`) effort does even for a bounded classification task — measured live as
+ * the single biggest avoidable chunk of the QA stage's wall time. No-op for Anthropic (and for any
+ * caller that doesn't set these fields): only passed through when actually requested.
+ */
+export function buildProviderOptions(
+  options: ModelCallOptions,
+  model: string,
+): Record<string, Record<string, unknown>> | undefined {
+  if (model.startsWith('claude')) return undefined;
+  if (!options.reasoningEffort && !options.textVerbosity) return undefined;
+  return {
+    openai: {
+      ...(options.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}),
+      ...(options.textVerbosity ? { textVerbosity: options.textVerbosity } : {}),
+    },
+  };
 }
 
 interface ZodLikeIssue {

@@ -265,6 +265,27 @@ export async function runAnalysis(
       computeScores({ analysisId: job.analysisId, evidence: evidenceWithPerf, context, assessments }),
     );
 
+    // Narration only explains these scores (reasoning spec §12) and never cited a specific finding
+    // for evidence, so it has no real dependency on diagnose/fix/qa_review — scores are final and
+    // immutable here (ADR-003). Kick it off now and let it run CONCURRENTLY with diagnosing →
+    // generating_fixes → qa_review below instead of waiting for them; a live run showed this as the
+    // single biggest lever for total pipeline time (~62s off the critical path). The `.catch(() => {})`
+    // only suppresses Node's unhandled-rejection warning while the other stages are still in flight —
+    // `narrationPromise` itself is awaited for real further down, where a genuine failure still
+    // propagates to the outer try/catch exactly as before.
+    const narrationPromise = runner.step('narration', async () =>
+      runNarrationStage({
+        evidence: evidenceWithPerf,
+        context,
+        scores,
+        // Sonnet (not Opus) — unrelated to this concurrency change, already the right model for the
+        // lighter "explain scores" task on its own merits.
+        model: config.models.signals,
+        client: modelClient,
+      }),
+    );
+    narrationPromise.catch(() => {});
+
     // 6 ---------------------------------------------------------- diagnosis
     await setStage('diagnosing');
     budgetGuard();
@@ -321,20 +342,11 @@ export async function runAnalysis(
 
     // 9 -------------------------------------------------------------- report
     await setStage('assembling_report');
-    const narration = await runner.step('narration', async () =>
-      runNarrationStage({
-        evidence: evidenceWithPerf,
-        context,
-        scores,
-        findings,
-        // Narration only explains scores the engine already calculated (reasoning spec §12) — a
-        // much lighter task than diagnosis, and a live run showed the slower Opus model here pushing
-        // total pipeline time past the platform's 300s ceiling. Sonnet is the right fit for this
-        // stage on its own merits, not just a speed workaround.
-        model: config.models.signals,
-        client: modelClient,
-      }),
-    );
+    budgetGuard();
+    // Narration was kicked off right after `scoring`, concurrently with diagnosing/generating_fixes/
+    // qa_review above — by now it has usually already finished. A genuine failure still throws here,
+    // caught by the outer try/catch exactly as any other stage's would be.
+    const narration = await narrationPromise;
 
     const report = assembleReport({
       analysisId: job.analysisId,

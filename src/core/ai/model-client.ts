@@ -21,6 +21,16 @@ export interface ModelCallOptions {
   cacheableContext?: string;
   temperature?: number;
   maxOutputTokens?: number;
+  /**
+   * OpenAI-family "reasoning model" tuning (gpt-5 etc. spend hidden reasoning tokens before emitting
+   * output; this controls how much). No-op for Anthropic models — this is a provider-specific
+   * performance hint, not a correctness setting. Omit for the provider default. Appropriate for a
+   * bounded classification/checklist task (e.g. QA's PASS/REVISE/REJECT review); leave unset for
+   * open-ended generation where more reasoning plausibly improves the result.
+   */
+  reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
+  /** Same OpenAI-only scope as reasoningEffort — how verbose the model's own text output is. */
+  textVerbosity?: 'low' | 'medium' | 'high';
   stage: string;
 }
 

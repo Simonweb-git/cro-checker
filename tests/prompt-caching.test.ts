@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPrompt } from '../src/core/ai/vercel-client.js';
+import { buildPrompt, buildProviderOptions } from '../src/core/ai/vercel-client.js';
 
 describe('buildPrompt (Anthropic prompt caching)', () => {
   it('marks cacheableContext as an ephemeral cache breakpoint for a Claude model', () => {
@@ -42,5 +42,37 @@ describe('buildPrompt (Anthropic prompt caching)', () => {
   it('returns a plain prompt string unchanged when there is nothing to cache', () => {
     expect(buildPrompt({ system: 's', prompt: 'just this', stage: 'x' }, 'claude-sonnet-5')).toBe('just this');
     expect(buildPrompt({ system: 's', prompt: 'just this', stage: 'x' }, 'gpt-5-mini')).toBe('just this');
+  });
+});
+
+describe('buildProviderOptions (OpenAI reasoning effort/verbosity)', () => {
+  it('passes reasoningEffort and textVerbosity through for an OpenAI model', () => {
+    const result = buildProviderOptions(
+      { system: 's', prompt: 'p', stage: 'x', reasoningEffort: 'low', textVerbosity: 'low' },
+      'gpt-5-mini',
+    );
+    expect(result).toEqual({ openai: { reasoningEffort: 'low', textVerbosity: 'low' } });
+  });
+
+  it('passes only the fields that were actually set', () => {
+    expect(buildProviderOptions({ system: 's', prompt: 'p', stage: 'x', reasoningEffort: 'low' }, 'gpt-5')).toEqual({
+      openai: { reasoningEffort: 'low' },
+    });
+    expect(buildProviderOptions({ system: 's', prompt: 'p', stage: 'x', textVerbosity: 'high' }, 'gpt-5')).toEqual({
+      openai: { textVerbosity: 'high' },
+    });
+  });
+
+  it('is a no-op for a Claude model even when the fields are set', () => {
+    const result = buildProviderOptions(
+      { system: 's', prompt: 'p', stage: 'x', reasoningEffort: 'low', textVerbosity: 'low' },
+      'claude-sonnet-5',
+    );
+    expect(result).toBeUndefined();
+  });
+
+  it('is a no-op when neither field is set, regardless of model', () => {
+    expect(buildProviderOptions({ system: 's', prompt: 'p', stage: 'x' }, 'gpt-5-mini')).toBeUndefined();
+    expect(buildProviderOptions({ system: 's', prompt: 'p', stage: 'x' }, 'claude-sonnet-5')).toBeUndefined();
   });
 });

@@ -40,6 +40,13 @@ export async function runQAStage(input: QAStageInput): Promise<QAStageResult> {
     // No-op for the OpenAI-family QA model (vercel-client.ts only special-cases Claude), but harmless
     // to include uniformly; OpenAI already caches long repeated prefixes automatically.
     cacheableContext: fenceEvidence(evidencePayload(input.evidence)),
+    // QA is a bounded six-point PASS/REVISE/REJECT checklist against supplied evidence, not
+    // open-ended generation — a live run showed this stage spending the OpenAI default (`medium`)
+    // reasoning effort regardless, making it the single slowest stage in the pipeline despite
+    // running on the nominally "fast" model. No-op on Anthropic models (buildProviderOptions in
+    // vercel-client.ts only applies this to OpenAI).
+    reasoningEffort: 'low',
+    textVerbosity: 'low',
     prompt: [
       `Engine-established site context: ${JSON.stringify({
         siteArchetype: input.context.siteArchetype.value,
